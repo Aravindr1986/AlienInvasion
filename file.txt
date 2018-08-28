@@ -1,0 +1,3 @@
+a north=b east=v
+b north=v south=a
+v west=a south=b
