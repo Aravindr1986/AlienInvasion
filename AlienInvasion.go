@@ -21,34 +21,52 @@ type alien struct {
 }
 
 var cities map[string]city
-var aliens []alien
+var aliens []alien                   //alien array
+var citytonub = make(map[int]string) //for randomly selecting alien locations
+var iterator int
+var citytoalien = make(map[string]int) //maps alien to a city
 
 func move() string {
 
-	mv := rand.Int() % 10
-	if mv == 1 {
+	mv := rand.Intn(3)
+	if mv == 0 {
 		return "north"
 	}
-	if mv == 2 {
+	if mv == 1 {
 		return "south"
 	}
-	if mv == 3 {
+	if mv == 2 {
 		return "east"
 	}
-	if mv == 4 {
+	if mv == 3 {
 		return "west"
 	}
 	return "Invalid"
+}
+func generateAlienOnMap(count int) {
+	aliens = make([]alien, count)
+	for i := 0; i < count; i++ {
+		x := rand.Intn(iterator)
+		fmt.Println("x=", x)
+		aliens[i] = alien{true, citytonub[x], 0}
+		citytoalien[citytonub[x]] = i
+		if i == 0 {
+			citytoalien[citytonub[x]] = -1
+		} //handling zeroth alien differently
+		fmt.Println("Alien ", i, " at :", citytonub[x], " cit map:", citytoalien[citytonub[x]])
+	}
 }
 func generateOrGetCity(st string) city {
 
 	gtcity := cities[st]
 	fmt.Println("gtcity :" + gtcity.name)
 	fmt.Println("st :", st)
-	if gtcity.name != st {
+	if gtcity.name != st { //new city detected
 		gtcity = city{st, nil, false}
 		gtcity.neigbours = make(map[string]*city)
 		cities[st] = gtcity
+		citytonub[iterator] = st
+		iterator++
 	}
 	return (gtcity)
 }
@@ -64,22 +82,16 @@ func generateCityMap(fileName string) {
 	var line string
 	cities = make(map[string]city)
 	for {
-
 		line, err = reader.ReadString('\n')
 		line = strings.Replace(line, "\n", "", -1)
-		fmt.Println("line :", line)
 		str := strings.Split(line, " ")
 		generateOrGetCity(str[0])
 		for i := 1; i < len(str); i++ {
 			st := strings.Split(str[i], "=")
 			st[1] = strings.TrimRight(st[1], "\r\n")
-			fmt.Print("st[1]:", st[1])
-			fmt.Print("lenght:", len(st[1]))
 			neig := generateOrGetCity(st[1])
-			fmt.Print("neig name :", neig.name)
 			cities[str[0]].neigbours[st[0]] = &neig
 		}
-
 		if err != nil {
 			break
 		}
@@ -90,13 +102,56 @@ func generateCityMap(fileName string) {
 		//fmt.Println(v.name)
 	}
 }
+func checkEnd() bool {
+
+	for i := 0; i < len(aliens); i++ {
+		if aliens[i].active == true {
+			return true
+		}
+	}
+	return false
+}
+func moveAliens() {
+
+	for i := 0; i < len(aliens); i++ {
+		if aliens[i].active {
+			aliens[i].totalmoves++
+			dir := move()
+			if cities[aliens[i].location].neigbours[dir] != nil && !cities[aliens[i].location].neigbours[dir].destroyed {
+				nam := cities[aliens[i].location].neigbours[dir].name
+				if citytoalien[nam] != 0 { //two aliens in the same
+					fmt.Println("Citi ", nam, " Destroyed!!")
+					cities[aliens[i].location].neigbours[dir].destroyed = true
+					aliens[i].active = false
+					if citytoalien[nam] == -1 {
+						aliens[0].active = false
+					} else {
+						aliens[citytoalien[nam]].active = false
+					}
+
+				}
+			}
+			if aliens[i].totalmoves == 10000 {
+				aliens[i].active = false
+			}
+
+		}
+	}
+
+}
+func moveTillEnd() {
+
+	for checkEnd() != false {
+		moveAliens()
+	}
+}
 func main() {
 	//reader := bufio.NewReader(os.Stdin)
 	//fmt.Println("Enter the file  : ")
 	//filename, _ := reader.ReadString('\n')
 	//filename = strings.Replace(filename, "\n", "", -1)
-	//fmt.Print("reading ", filename)
-	//fmt.Print("hello")
 	generateCityMap("file.txt")
-
+	generateAlienOnMap(2)
+	//fmt.Println("value : ", cities["v"].neigbours["east"])
+	moveTillEnd()
 }
