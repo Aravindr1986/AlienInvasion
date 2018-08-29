@@ -1,11 +1,18 @@
 package main
 
+/*Program to simulate alien incvasion in a city
+Assumptions
+1) An alien becomes inactive(destroyed) when it has reached the end of the steps or two are found in the same city
+2) The number of aliens should be less than the number of cities
+3) In the intial step no two aliens appear in the same city
+4) Even if an alien is trapped, It countinues until 10000 steps are reached */
 import (
 	"bufio"
 	"fmt"
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -17,8 +24,8 @@ type city struct {
 	neighbors map[int]*city //north = 1 south =2 East = 3 West = 4
 	destroyed bool
 }
-type alien struct {
-	active     bool
+type alien struct { //Each Alien has two states active and inactive.
+	active     bool //Alien state becomes inactive when it is achives total moves or destroyed
 	location   int
 	totalmoves int
 }
@@ -36,7 +43,7 @@ func move() int {
 	}
 	return mv
 }
-func translateDirection(direc string) int { //transalator for random alien directions
+func translateDirection(direc string) int { //transalator for city building
 	if direc == "north" {
 		return 1
 	}
@@ -51,20 +58,35 @@ func translateDirection(direc string) int { //transalator for random alien direc
 	}
 	return 0
 }
+func translateback(direc int) string { //transalator for city building
+	if direc == 1 {
+		return "north"
+	}
+	if direc == 2 {
+		return "south"
+	}
+	if direc == 3 {
+		return "east"
+	}
+	if direc == 4 {
+		return "west"
+	}
+	return "nope"
+}
 
 func generateAlienOnMap(count int) { //generating aliens and assigning to random city
 	aliens = make([]alien, count+1) //count of alien + 1 to avoid zero conflict
 	x := 0
 	for i := 1; i <= count; i++ {
-		for citytoalien[x] != 0 { //ensuring that two aliens are not assigned to the same citi intially
+
+		for citytoalien[x] != 0 || x == 0 { //ensuring that two aliens are not assigned to the same citi intially
 			x = rand.Intn(iterator) //randomly select the aliens location out of available cities
 		}
-		if x == 0 {
+		if x == 0 { //skipping index zero
 			x++
 		}
 		aliens[i] = alien{true, x, 0}
 		citytoalien[x] = i //mapping alien to city
-
 		fmt.Println("Alien ", i, " at ", cities[x].name)
 	}
 }
@@ -77,7 +99,7 @@ func generateOrGetCity(cityname string) *city { //generates new city object
 	cities[iterator] = &gtcity
 	return (&gtcity)
 }
-func generateCityMap(fileName string) {
+func generateCityMap(fileName string) { //generates the city map based on the input file
 
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -85,7 +107,7 @@ func generateCityMap(fileName string) {
 	}
 	defer file.Close()
 
-	reader := bufio.NewReader(file)
+	reader := bufio.NewReader(file) //reading the input file
 	var line string
 	cities = make(map[int]*city)
 	var citiesread = make(map[string]int)
@@ -105,22 +127,25 @@ func generateCityMap(fileName string) {
 			st := strings.Split(str[i], "=")
 			st[1] = strings.TrimRight(st[1], "\r\n") //represents city
 			var neig *city
-			if citiesread[st[1]] == 0 {
+			if citiesread[st[1]] == 0 { //check and generate new city neighbor
 				neig = generateOrGetCity(st[1])
 				citiesread[st[1]] = iterator
 			} else {
 				neig = cities[citiesread[st[1]]]
 			}
-			cities[citiesread[str[0]]].neighbors[translateDirection(st[0])] = neig
+			cities[citiesread[str[0]]].neighbors[translateDirection(st[0])] = neig //assigning the neighbor city
 		}
 		if err != nil {
 			break
 		}
 	}
-	fmt.Println("Generated Map!!")
+	fmt.Println("Generated Map!!") //print the generated city map
 	for k, v := range cities {
-		fmt.Println("key: ", k, " value: ", v)
-		//fmt.Println(v.name)
+		fmt.Print("key: ", k, " value: ( ", v.name)
+		for s, t := range v.neighbors {
+			fmt.Print(" ", s, " : ", t.name)
+		}
+		fmt.Println(")")
 	}
 }
 
@@ -147,19 +172,11 @@ func moveAliens() {
 				cid := cities[aliens[i].location].neighbors[mvdir].id //name of the neigbouring city
 				if citytoalien[cid] != 0 {                            //two aliens in the same
 					cities[aliens[i].location].neighbors[mvdir].destroyed = true
-					//	delete(cities, cid)
-					//cities[cid] = ctemp //destroy the neigbouring city
-					//fmt.Println("-----------------------------------------------------------------------------------")
-					fmt.Println("Citi ", cities[aliens[i].location].neighbors[mvdir].name, " Destroyed!! ", cities[aliens[i].location].neighbors[mvdir].destroyed)
-					//fmt.Println("-----------------------------------------------------------------------------------")
+
+					fmt.Println("Citi ", cities[aliens[i].location].neighbors[mvdir].name, " Destroyed by alien", citytoalien[cid], " and alien", i)
 					aliens[i].active = false                //destroy the alien
 					aliens[citytoalien[cid]].active = false //destroy the alien already present in the city
 					citytoalien[aliens[i].location] = 0     //reset the number of aliens in the current city
-					//fmt.Println("Generated Map!!")
-					/*for k, v := range cities {
-						fmt.Println("key: ", k, " value: ", v)
-						//fmt.Println(v.name)
-					}*/
 				} else { //if there are no conflicts move the alien to the new location and reset the old locations
 					citytoalien[aliens[i].location] = 0
 					aliens[i].location = cities[cid].id
@@ -168,7 +185,7 @@ func moveAliens() {
 
 			}
 
-			if aliens[i].totalmoves == 10000 {
+			if aliens[i].totalmoves == 10000 { //checking and deactivating alien when they reach 10000 moves
 				aliens[i].active = false
 			}
 
@@ -183,13 +200,27 @@ func moveTillEnd() {
 	}
 }
 func main() {
-	//reader := bufio.NewReader(os.Stdin)
-	//fmt.Println("Enter the file  : ")
-	//filename, _ := reader.ReadString('\n')
-	//filename = strings.Replace(filename, "\n", "", -1)
-	rand.Seed(time.Now().UTC().UnixNano())
-	generateCityMap("file2.txt")
-	generateAlienOnMap(25)
-	//fmt.Println("value : ", cities["v"].neighbors["east"])
-	moveTillEnd()
+
+	rand.Seed(time.Now().UTC().UnixNano()) //seeding the random number
+	generateCityMap(os.Args[1])            //calling to generate the city map
+	noaliens, _ := strconv.Atoi(os.Args[2])
+	fmt.Println("city count:", iterator)
+	if noaliens < iterator {
+		generateAlienOnMap(noaliens)       //generating the aliens
+		moveTillEnd()                      //running simulation
+		fmt.Println("Remaining cities !!") //printing the remaining cities in the input format
+		for k, v := range cities {
+			if !v.destroyed {
+				k = k + 1
+				fmt.Print(v.name)
+				for s, t := range v.neighbors {
+					fmt.Print(" ", translateback(s), "=", t.name)
+				}
+				fmt.Println()
+			}
+		}
+	} else {
+		fmt.Println("Error!! Number of aliens must be less than number of cities!!")
+	}
+
 }
