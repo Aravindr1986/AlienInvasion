@@ -25,3 +25,5 @@ The map of the cities and aliens are done using map data structure in go along w
 To run the program, copy the AlienInvasion.go file and the input file to a folder an issue the below command
 
 go run AlienInvasion.go <pathtofile/cityfilename> aliencount
+
+
